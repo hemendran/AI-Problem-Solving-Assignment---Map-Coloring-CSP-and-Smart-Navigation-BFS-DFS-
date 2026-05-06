@@ -1,0 +1,376 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Smart Navigation System — BFS & DFS</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Outfit:wght@400;600;800&display=swap');
+  :root {
+    --bg: #07080a;
+    --panel: #0f1117;
+    --border: #1e2130;
+    --blue: #3b82f6;
+    --cyan: #06b6d4;
+    --green: #10b981;
+    --red: #ef4444;
+    --yellow: #f59e0b;
+    --text: #e2e8f0;
+    --muted: #475569;
+  }
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body { background:var(--bg); color:var(--text); font-family:'Outfit',sans-serif; min-height:100vh; padding:20px; }
+  h1 { font-size:1.9rem; font-weight:800; letter-spacing:-1px; }
+  .grad-bfs { background:linear-gradient(90deg,#3b82f6,#06b6d4); -webkit-background-clip:text; -webkit-text-fill-color:transparent; }
+  .grad-dfs { background:linear-gradient(90deg,#f59e0b,#ef4444); -webkit-background-clip:text; -webkit-text-fill-color:transparent; }
+  .subtitle { font-family:'Space Mono',monospace; font-size:0.75rem; color:var(--muted); margin-bottom:24px; margin-top:4px; }
+  .layout { display:grid; grid-template-columns:320px 1fr; gap:20px; max-width:1100px; margin:0 auto; }
+  .panel { background:var(--panel); border:1px solid var(--border); border-radius:14px; padding:18px; }
+  .panel-title { font-size:0.75rem; font-weight:700; text-transform:uppercase; letter-spacing:2px; color:var(--muted); margin-bottom:14px; }
+  label { display:block; font-size:0.75rem; color:var(--muted); font-family:'Space Mono',monospace; margin:10px 0 5px; }
+  input, textarea {
+    width:100%; background:#0a0c12; border:1px solid var(--border); border-radius:8px;
+    color:var(--text); font-family:'Space Mono',monospace; font-size:0.8rem; padding:9px 11px; outline:none; transition:border-color 0.2s;
+  }
+  input:focus, textarea:focus { border-color:var(--blue); }
+  textarea { resize:vertical; min-height:90px; }
+  .btn { width:100%; padding:11px; border:none; border-radius:8px; font-family:'Outfit',sans-serif; font-weight:700; font-size:0.9rem; cursor:pointer; transition:all 0.2s; margin-top:8px; }
+  .btn-bfs { background:linear-gradient(90deg,#3b82f6,#06b6d4); color:#000; }
+  .btn-dfs { background:linear-gradient(90deg,#f59e0b,#ef4444); color:#000; }
+  .btn-both { background:linear-gradient(90deg,#7c3aed,#3b82f6); color:#fff; }
+  .btn-clear { background:transparent; border:1px solid var(--border); color:var(--muted); margin-top:6px; }
+  .btn:hover { transform:translateY(-1px); filter:brightness(1.1); }
+
+  /* Canvas */
+  #graphCanvas { width:100%; height:380px; background:#0a0c12; border-radius:10px; border:1px solid var(--border); display:block; }
+
+  /* Results */
+  .result-grid { display:grid; grid-template-columns:1fr 1fr; gap:14px; margin-top:14px; }
+  .result-card { background:#0a0c12; border-radius:10px; padding:14px; border:1px solid var(--border); }
+  .result-card-title { font-size:0.7rem; font-weight:700; text-transform:uppercase; letter-spacing:2px; margin-bottom:10px; }
+  .bfs-title { color:var(--blue); }
+  .dfs-title { color:var(--yellow); }
+  .path-display { font-family:'Space Mono',monospace; font-size:0.8rem; line-height:1.9; }
+  .path-node { display:inline-block; background:#1a1f2e; border:1px solid #2a3040; border-radius:6px; padding:2px 9px; margin:2px; font-weight:700; }
+  .path-node.visited-bfs { border-color:var(--blue); color:var(--blue); }
+  .path-node.visited-dfs { border-color:var(--yellow); color:var(--yellow); }
+  .path-node.on-path { background:#1e2d40; }
+  .arrow { color:var(--muted); margin:0 2px; }
+  .stat-row { display:flex; justify-content:space-between; margin-top:8px; font-size:0.75rem; font-family:'Space Mono',monospace; }
+  .stat-label { color:var(--muted); }
+  .stat-val-bfs { color:var(--cyan); font-weight:700; }
+  .stat-val-dfs { color:var(--yellow); font-weight:700; }
+  .no-path { color:var(--red); font-family:'Space Mono',monospace; font-size:0.8rem; }
+  .comparison { background:#0a0c12; border-radius:10px; padding:14px; border:1px solid var(--border); margin-top:14px; }
+  .comp-title { font-size:0.75rem; color:var(--muted); font-family:'Space Mono',monospace; text-transform:uppercase; letter-spacing:2px; margin-bottom:12px; }
+  table { width:100%; border-collapse:collapse; font-size:0.78rem; font-family:'Space Mono',monospace; }
+  th { background:#131720; padding:8px 12px; text-align:left; color:var(--muted); font-weight:700; font-size:0.7rem; }
+  td { padding:8px 12px; border-top:1px solid #131720; }
+  .highlight-bfs { color:var(--blue); }
+  .highlight-dfs { color:var(--yellow); }
+  .badge { padding:2px 10px; border-radius:20px; font-size:0.7rem; font-weight:700; }
+  .badge-optimal { background:rgba(16,185,129,0.15); color:var(--green); border:1px solid rgba(16,185,129,0.3); }
+  .badge-faster { background:rgba(245,158,11,0.15); color:var(--yellow); border:1px solid rgba(245,158,11,0.3); }
+  .error { color:var(--red); font-family:'Space Mono',monospace; font-size:0.75rem; margin-top:6px; }
+  @media(max-width:800px){.layout{grid-template-columns:1fr}.result-grid{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+<div style="max-width:1100px;margin:0 auto">
+  <h1><span class="grad-bfs">Smart Navigation</span> System</h1>
+  <div class="subtitle">// BFS (Breadth-First Search) vs DFS (Depth-First Search) — Path Finding</div>
+
+  <div class="layout">
+    <!-- Left: Input -->
+    <div>
+      <div class="panel">
+        <div class="panel-title">⚙ Graph Configuration</div>
+        <label>NODES (comma separated)</label>
+        <input id="nodes" value="A,B,C,D,E,F,G"/>
+        <label>EDGES (one per line: X-Y)</label>
+        <textarea id="edges">A-B
+A-C
+B-D
+B-E
+C-F
+D-G
+E-G
+F-G</textarea>
+        <label>START NODE</label>
+        <input id="startNode" value="A"/>
+        <label>GOAL NODE</label>
+        <input id="goalNode" value="G"/>
+        <button class="btn btn-both" onclick="runBoth()">▶ RUN BFS + DFS</button>
+        <button class="btn btn-bfs" onclick="runBFS()">Run BFS Only</button>
+        <button class="btn btn-dfs" onclick="runDFS()">Run DFS Only</button>
+        <button class="btn btn-clear" onclick="clearAll()">✕ Clear</button>
+        <div id="errorMsg" class="error"></div>
+      </div>
+
+      <!-- Legend -->
+      <div class="panel" style="margin-top:14px">
+        <div class="panel-title">📖 Legend</div>
+        <div style="font-size:0.78rem;line-height:2;font-family:'Space Mono',monospace">
+          <div><span style="color:var(--blue)">●</span> BFS Path Node</div>
+          <div><span style="color:var(--yellow)">●</span> DFS Path Node</div>
+          <div><span style="color:var(--green)">●</span> Start / Goal Node</div>
+          <div><span style="color:var(--muted)">─</span> Graph Edge</div>
+        </div>
+        <div style="margin-top:12px;font-size:0.72rem;color:var(--muted);line-height:1.7">
+          <b style="color:var(--text)">BFS</b> explores level by level → always finds shortest path<br>
+          <b style="color:var(--text)">DFS</b> goes deep first → faster but not always shortest
+        </div>
+      </div>
+    </div>
+
+    <!-- Right: Visualization + Results -->
+    <div>
+      <div class="panel">
+        <div class="panel-title">🗺 Graph Visualization</div>
+        <canvas id="graphCanvas"></canvas>
+      </div>
+
+      <div class="result-grid">
+        <div class="result-card">
+          <div class="result-card-title bfs-title">🔵 BFS Result</div>
+          <div id="bfsResult" class="path-display" style="color:var(--muted);font-size:0.78rem">Run solver to see path...</div>
+          <div id="bfsStats"></div>
+        </div>
+        <div class="result-card">
+          <div class="result-card-title dfs-title">🟡 DFS Result</div>
+          <div id="dfsResult" class="path-display" style="color:var(--muted);font-size:0.78rem">Run solver to see path...</div>
+          <div id="dfsStats"></div>
+        </div>
+      </div>
+
+      <div class="comparison">
+        <div class="comp-title">📊 Comparison Table</div>
+        <div id="compTable" style="color:var(--muted);font-family:'Space Mono',monospace;font-size:0.78rem">Run both algorithms to compare...</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+let bfsResult = null, dfsResult = null;
+
+function parseGraph() {
+  const nodes = document.getElementById('nodes').value.split(',').map(n => n.trim()).filter(Boolean);
+  const edgesRaw = document.getElementById('edges').value.trim().split('\n');
+  const adj = {};
+  nodes.forEach(n => adj[n] = []);
+  edgesRaw.forEach(line => {
+    const parts = line.split('-').map(p => p.trim());
+    if (parts.length === 2 && adj[parts[0]] !== undefined && adj[parts[1]] !== undefined) {
+      adj[parts[0]].push(parts[1]);
+      adj[parts[1]].push(parts[0]);
+    }
+  });
+  return { nodes, adj };
+}
+
+function bfs(adj, start, goal) {
+  const queue = [[start]];
+  const visited = new Set([start]);
+  const order = [start];
+  while (queue.length) {
+    const path = queue.shift();
+    const node = path[path.length - 1];
+    if (node === goal) return { path, visited: [...order] };
+    for (const nb of (adj[node] || [])) {
+      if (!visited.has(nb)) {
+        visited.add(nb);
+        order.push(nb);
+        queue.push([...path, nb]);
+      }
+    }
+  }
+  return { path: null, visited: [...order] };
+}
+
+function dfs(adj, start, goal) {
+  const stack = [[start]];
+  const visited = new Set();
+  const order = [];
+  while (stack.length) {
+    const path = stack.pop();
+    const node = path[path.length - 1];
+    if (visited.has(node)) continue;
+    visited.add(node);
+    order.push(node);
+    if (node === goal) return { path, visited: order };
+    for (const nb of [...(adj[node] || [])].reverse()) {
+      if (!visited.has(nb)) stack.push([...path, nb]);
+    }
+  }
+  return { path: null, visited: order };
+}
+
+function runBFS() {
+  const err = validate(); if (err) return;
+  const { adj } = parseGraph();
+  const start = document.getElementById('startNode').value.trim();
+  const goal = document.getElementById('goalNode').value.trim();
+  bfsResult = bfs(adj, start, goal);
+  renderBFS(bfsResult, start, goal);
+  drawGraph();
+}
+
+function runDFS() {
+  const err = validate(); if (err) return;
+  const { adj } = parseGraph();
+  const start = document.getElementById('startNode').value.trim();
+  const goal = document.getElementById('goalNode').value.trim();
+  dfsResult = dfs(adj, start, goal);
+  renderDFS(dfsResult, start, goal);
+  drawGraph();
+}
+
+function runBoth() {
+  const err = validate(); if (err) return;
+  const { adj } = parseGraph();
+  const start = document.getElementById('startNode').value.trim();
+  const goal = document.getElementById('goalNode').value.trim();
+  bfsResult = bfs(adj, start, goal);
+  dfsResult = dfs(adj, start, goal);
+  renderBFS(bfsResult, start, goal);
+  renderDFS(dfsResult, start, goal);
+  renderComparison(bfsResult, dfsResult);
+  drawGraph();
+}
+
+function renderBFS(res, start, goal) {
+  const box = document.getElementById('bfsResult');
+  const stats = document.getElementById('bfsStats');
+  if (!res.path) { box.innerHTML = '<span class="no-path">❌ No path found</span>'; stats.innerHTML = ''; return; }
+  box.innerHTML = res.path.map(n => `<span class="path-node visited-bfs">${n}</span>`).join('<span class="arrow">→</span>');
+  stats.innerHTML = `
+    <div class="stat-row"><span class="stat-label">Path Length:</span><span class="stat-val-bfs">${res.path.length - 1} edges</span></div>
+    <div class="stat-row"><span class="stat-label">Nodes Explored:</span><span class="stat-val-bfs">${res.visited.length}</span></div>
+    <div class="stat-row"><span class="stat-label">Optimal:</span><span class="stat-val-bfs">✓ Yes</span></div>
+  `;
+}
+
+function renderDFS(res, start, goal) {
+  const box = document.getElementById('dfsResult');
+  const stats = document.getElementById('dfsStats');
+  if (!res.path) { box.innerHTML = '<span class="no-path">❌ No path found</span>'; stats.innerHTML = ''; return; }
+  box.innerHTML = res.path.map(n => `<span class="path-node visited-dfs">${n}</span>`).join('<span class="arrow">→</span>');
+  stats.innerHTML = `
+    <div class="stat-row"><span class="stat-label">Path Length:</span><span class="stat-val-dfs">${res.path.length - 1} edges</span></div>
+    <div class="stat-row"><span class="stat-label">Nodes Explored:</span><span class="stat-val-dfs">${res.visited.length}</span></div>
+    <div class="stat-row"><span class="stat-label">Optimal:</span><span class="stat-val-dfs">~ Not guaranteed</span></div>
+  `;
+}
+
+function renderComparison(bfs, dfs) {
+  const box = document.getElementById('compTable');
+  if (!bfs || !dfs) { box.textContent = 'Run both algorithms first.'; return; }
+  const bfsLen = bfs.path ? bfs.path.length - 1 : 'N/A';
+  const dfsLen = dfs.path ? dfs.path.length - 1 : 'N/A';
+  const shorter = (bfsLen !== 'N/A' && dfsLen !== 'N/A') ? (bfsLen <= dfsLen ? 'BFS' : 'DFS') : '-';
+  box.innerHTML = `
+    <table>
+      <tr><th>Metric</th><th class="highlight-bfs">BFS</th><th class="highlight-dfs">DFS</th></tr>
+      <tr><td>Path Found</td><td class="highlight-bfs">${bfs.path ? '✓ Yes' : '✗ No'}</td><td class="highlight-dfs">${dfs.path ? '✓ Yes' : '✗ No'}</td></tr>
+      <tr><td>Path Length (edges)</td><td class="highlight-bfs">${bfsLen}</td><td class="highlight-dfs">${dfsLen}</td></tr>
+      <tr><td>Nodes Explored</td><td class="highlight-bfs">${bfs.visited.length}</td><td class="highlight-dfs">${dfs.visited.length}</td></tr>
+      <tr><td>Guarantees Shortest</td><td class="highlight-bfs"><span class="badge badge-optimal">✓ Yes</span></td><td class="highlight-dfs">✗ No</td></tr>
+      <tr><td>Space Complexity</td><td class="highlight-bfs">O(V) — wide</td><td class="highlight-dfs">O(depth) — lean</td></tr>
+      <tr><td>Best For</td><td class="highlight-bfs">Shortest path</td><td class="highlight-dfs">Memory saving</td></tr>
+      <tr><td>Shorter Path</td><td colspan="2" style="color:var(--green);font-weight:700">${shorter}</td></tr>
+    </table>
+  `;
+}
+
+function validate() {
+  document.getElementById('errorMsg').textContent = '';
+  const nodes = document.getElementById('nodes').value.split(',').map(n => n.trim()).filter(Boolean);
+  const start = document.getElementById('startNode').value.trim();
+  const goal = document.getElementById('goalNode').value.trim();
+  if (!nodes.includes(start)) { document.getElementById('errorMsg').textContent = `Start node "${start}" not in node list.`; return true; }
+  if (!nodes.includes(goal)) { document.getElementById('errorMsg').textContent = `Goal node "${goal}" not in node list.`; return true; }
+  return false;
+}
+
+function drawGraph() {
+  const canvas = document.getElementById('graphCanvas');
+  const ctx = canvas.getContext('2d');
+  canvas.width = canvas.offsetWidth * window.devicePixelRatio;
+  canvas.height = canvas.offsetHeight * window.devicePixelRatio;
+  ctx.scale(window.devicePixelRatio, window.devicePixelRatio);
+  const W = canvas.offsetWidth, H = canvas.offsetHeight;
+  ctx.clearRect(0, 0, W, H);
+
+  const { nodes, adj } = parseGraph();
+  const start = document.getElementById('startNode').value.trim();
+  const goal = document.getElementById('goalNode').value.trim();
+  const n = nodes.length;
+  const cx = W / 2, cy = H / 2;
+  const r = Math.min(W, H) * 0.35;
+  const pos = {};
+  nodes.forEach((node, i) => {
+    const angle = (2 * Math.PI * i / n) - Math.PI / 2;
+    pos[node] = { x: cx + r * Math.cos(angle), y: cy + r * Math.sin(angle) };
+  });
+
+  const bfsPath = new Set(bfsResult?.path || []);
+  const dfsPath = new Set(dfsResult?.path || []);
+
+  // Draw edges
+  const drawn = new Set();
+  nodes.forEach(nd => {
+    (adj[nd] || []).forEach(nb => {
+      const key = [nd, nb].sort().join('-');
+      if (drawn.has(key)) return;
+      drawn.add(key);
+      const inBfs = bfsResult?.path && bfsResult.path.some((p, i) => i < bfsResult.path.length - 1 && ((bfsResult.path[i] === nd && bfsResult.path[i+1] === nb) || (bfsResult.path[i] === nb && bfsResult.path[i+1] === nd)));
+      const inDfs = dfsResult?.path && dfsResult.path.some((p, i) => i < dfsResult.path.length - 1 && ((dfsResult.path[i] === nd && dfsResult.path[i+1] === nb) || (dfsResult.path[i] === nb && dfsResult.path[i+1] === nd)));
+      ctx.beginPath();
+      ctx.moveTo(pos[nd].x, pos[nd].y);
+      ctx.lineTo(pos[nb].x, pos[nb].y);
+      ctx.strokeStyle = inBfs ? '#3b82f6' : inDfs ? '#f59e0b' : '#1e2130';
+      ctx.lineWidth = (inBfs || inDfs) ? 3 : 1.5;
+      ctx.stroke();
+    });
+  });
+
+  // Draw nodes
+  nodes.forEach(nd => {
+    const { x, y } = pos[nd];
+    const isStart = nd === start, isGoal = nd === goal;
+    const inBfsP = bfsPath.has(nd), inDfsP = dfsPath.has(nd);
+    let fill = '#0f1117', stroke = '#1e2130', strokeW = 2;
+    if (isStart || isGoal) { fill = '#064e3b'; stroke = '#10b981'; strokeW = 3; }
+    else if (inBfsP && inDfsP) { fill = '#1e1b4b'; stroke = '#8b5cf6'; strokeW = 3; }
+    else if (inBfsP) { fill = '#1e3a5f'; stroke = '#3b82f6'; strokeW = 3; }
+    else if (inDfsP) { fill = '#451a03'; stroke = '#f59e0b'; strokeW = 3; }
+    ctx.beginPath();
+    ctx.arc(x, y, 22, 0, 2 * Math.PI);
+    ctx.fillStyle = fill; ctx.fill();
+    ctx.strokeStyle = stroke; ctx.lineWidth = strokeW; ctx.stroke();
+    ctx.fillStyle = stroke;
+    ctx.font = 'bold 13px Outfit, sans-serif';
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.fillText(nd, x, y);
+    if (isStart) { ctx.fillStyle = '#6ee7b7'; ctx.font = '9px Space Mono,monospace'; ctx.fillText('START', x, y + 34); }
+    if (isGoal) { ctx.fillStyle = '#6ee7b7'; ctx.font = '9px Space Mono,monospace'; ctx.fillText('GOAL', x, y + 34); }
+  });
+}
+
+function clearAll() {
+  bfsResult = null; dfsResult = null;
+  document.getElementById('bfsResult').innerHTML = '<span style="color:var(--muted)">Run solver to see path...</span>';
+  document.getElementById('dfsResult').innerHTML = '<span style="color:var(--muted)">Run solver to see path...</span>';
+  document.getElementById('bfsStats').innerHTML = '';
+  document.getElementById('dfsStats').innerHTML = '';
+  document.getElementById('compTable').textContent = 'Run both algorithms to compare...';
+  document.getElementById('errorMsg').textContent = '';
+  drawGraph();
+}
+
+window.onload = () => { drawGraph(); };
+window.onresize = () => drawGraph();
+</script>
+</body>
+          </html>
