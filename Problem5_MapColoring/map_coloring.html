@@ -1,0 +1,345 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Map Coloring Problem - CSP</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&family=Syne:wght@400;700;800&display=swap');
+  :root {
+    --bg: #0d0d0d;
+    --panel: #161616;
+    --border: #2a2a2a;
+    --accent: #00e5a0;
+    --accent2: #ff6b35;
+    --text: #e8e8e8;
+    --muted: #666;
+    --red: #ff4757;
+    --green: #00e5a0;
+    --blue: #4ecdc4;
+    --yellow: #ffe66d;
+    --purple: #a855f7;
+    --orange: #ff6b35;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Syne', sans-serif;
+    min-height: 100vh;
+    padding: 20px;
+  }
+  h1 {
+    font-size: 2rem;
+    font-weight: 800;
+    letter-spacing: -1px;
+    margin-bottom: 4px;
+    background: linear-gradient(90deg, var(--accent), var(--accent2));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+  }
+  .subtitle { color: var(--muted); font-size: 0.85rem; font-family: 'JetBrains Mono', monospace; margin-bottom: 24px; }
+  .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; max-width: 1100px; margin: 0 auto; }
+  .panel {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 20px;
+  }
+  .panel h2 { font-size: 1rem; font-weight: 700; color: var(--accent); margin-bottom: 16px; text-transform: uppercase; letter-spacing: 2px; }
+  label { display: block; font-size: 0.8rem; color: var(--muted); font-family: 'JetBrains Mono', monospace; margin-bottom: 6px; margin-top: 12px; }
+  input, textarea {
+    width: 100%;
+    background: #1e1e1e;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    color: var(--text);
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.85rem;
+    padding: 10px 12px;
+    outline: none;
+    transition: border-color 0.2s;
+  }
+  input:focus, textarea:focus { border-color: var(--accent); }
+  textarea { resize: vertical; min-height: 80px; }
+  .btn {
+    margin-top: 16px;
+    width: 100%;
+    padding: 12px;
+    background: var(--accent);
+    color: #000;
+    border: none;
+    border-radius: 8px;
+    font-family: 'Syne', sans-serif;
+    font-weight: 700;
+    font-size: 0.95rem;
+    cursor: pointer;
+    transition: all 0.2s;
+    letter-spacing: 1px;
+  }
+  .btn:hover { background: #00ffb3; transform: translateY(-1px); }
+  .btn-secondary {
+    background: transparent;
+    border: 1px solid var(--border);
+    color: var(--muted);
+    margin-top: 8px;
+  }
+  .btn-secondary:hover { border-color: var(--accent2); color: var(--accent2); background: transparent; }
+
+  /* SVG Map */
+  #mapSvg {
+    width: 100%;
+    height: 320px;
+    background: #111;
+    border-radius: 10px;
+    border: 1px solid var(--border);
+  }
+  .region { cursor: pointer; transition: all 0.3s; }
+  .region:hover { filter: brightness(1.3); }
+
+  /* Result */
+  .result-box {
+    background: #1a1a1a;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 14px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.82rem;
+    margin-top: 12px;
+    min-height: 60px;
+  }
+  .result-row { display: flex; justify-content: space-between; align-items: center; padding: 6px 0; border-bottom: 1px solid #222; }
+  .result-row:last-child { border-bottom: none; }
+  .color-chip { width: 18px; height: 18px; border-radius: 4px; display: inline-block; margin-right: 8px; vertical-align: middle; }
+  .badge { padding: 3px 10px; border-radius: 20px; font-size: 0.75rem; font-weight: 700; }
+  .badge-success { background: rgba(0,229,160,0.15); color: var(--green); border: 1px solid rgba(0,229,160,0.3); }
+  .badge-fail { background: rgba(255,71,87,0.15); color: var(--red); border: 1px solid rgba(255,71,87,0.3); }
+  .step-log { font-size: 0.75rem; color: var(--muted); margin-top: 8px; line-height: 1.8; }
+  .log-line { padding: 2px 0; }
+  .log-line span { color: var(--accent); }
+  .stats { display: flex; gap: 12px; margin-top: 12px; }
+  .stat { flex: 1; background: #111; border-radius: 8px; padding: 10px; text-align: center; border: 1px solid var(--border); }
+  .stat-val { font-size: 1.4rem; font-weight: 800; color: var(--accent); }
+  .stat-lbl { font-size: 0.7rem; color: var(--muted); font-family: 'JetBrains Mono', monospace; }
+
+  .full-col { grid-column: 1 / -1; }
+  .msg-error { color: var(--red); font-family: 'JetBrains Mono', monospace; font-size: 0.82rem; margin-top: 8px; }
+
+  @media (max-width: 700px) { .grid { grid-template-columns: 1fr; } }
+</style>
+</head>
+<body>
+<div style="max-width:1100px;margin:0 auto">
+  <h1>Map Coloring Problem</h1>
+  <div class="subtitle">// Constraint Satisfaction Problem (CSP) — Backtracking + Forward Checking</div>
+
+  <div class="grid">
+    <!-- Input Panel -->
+    <div class="panel">
+      <h2>⚙ Input</h2>
+      <label>REGIONS (comma separated)</label>
+      <input id="regions" value="A,B,C,D,E" placeholder="A,B,C,D"/>
+      <label>ADJACENCY (one pair per line, e.g. A-B)</label>
+      <textarea id="adjacency">A-B
+A-C
+B-C
+B-D
+C-D
+C-E
+D-E</textarea>
+      <label>COLORS AVAILABLE (comma separated)</label>
+      <input id="colors" value="Red,Green,Blue,Yellow"/>
+      <button class="btn" onclick="solve()">▶ SOLVE WITH CSP</button>
+      <button class="btn btn-secondary" onclick="loadPreset()">Load India Map Sample</button>
+      <div id="errorMsg" class="msg-error"></div>
+    </div>
+
+    <!-- Map Visualization -->
+    <div class="panel">
+      <h2>🗺 Map Visualization</h2>
+      <svg id="mapSvg" viewBox="0 0 400 300"></svg>
+      <div class="stats">
+        <div class="stat"><div class="stat-val" id="statRegions">0</div><div class="stat-lbl">REGIONS</div></div>
+        <div class="stat"><div class="stat-val" id="statColors">0</div><div class="stat-lbl">COLORS USED</div></div>
+        <div class="stat"><div class="stat-val" id="statSteps">0</div><div class="stat-lbl">BACKTRACKS</div></div>
+      </div>
+    </div>
+
+    <!-- Results -->
+    <div class="panel full-col">
+      <h2>📊 CSP Solution Output</h2>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px">
+        <div>
+          <div style="font-size:0.8rem;color:var(--muted);font-family:'JetBrains Mono',monospace;margin-bottom:8px">COLOR ASSIGNMENTS</div>
+          <div class="result-box" id="resultBox"><span style="color:var(--muted)">Run the solver to see results...</span></div>
+        </div>
+        <div>
+          <div style="font-size:0.8rem;color:var(--muted);font-family:'JetBrains Mono',monospace;margin-bottom:8px">ALGORITHM TRACE</div>
+          <div class="result-box" id="logBox"><span style="color:var(--muted)">Backtracking steps will appear here...</span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+const COLORS_PALETTE = {
+  'Red':    '#ff4757', 'Green':  '#00e5a0', 'Blue':   '#4ecdc4',
+  'Yellow': '#ffe66d', 'Purple': '#a855f7', 'Orange': '#ff6b35',
+  'Pink':   '#ff6b9d', 'Cyan':   '#00d2ff'
+};
+
+let backtracks = 0;
+let logLines = [];
+
+function parseInput() {
+  const regions = document.getElementById('regions').value.split(',').map(r => r.trim()).filter(Boolean);
+  const adjRaw = document.getElementById('adjacency').value.trim().split('\n');
+  const colors = document.getElementById('colors').value.split(',').map(c => c.trim()).filter(Boolean);
+  const adjacency = {};
+  regions.forEach(r => adjacency[r] = []);
+  adjRaw.forEach(line => {
+    const parts = line.split('-').map(p => p.trim());
+    if (parts.length === 2 && adjacency[parts[0]] !== undefined && adjacency[parts[1]] !== undefined) {
+      adjacency[parts[0]].push(parts[1]);
+      adjacency[parts[1]].push(parts[0]);
+    }
+  });
+  return { regions, adjacency, colors };
+}
+
+function isConsistent(region, color, assignment, adjacency) {
+  for (const neighbor of adjacency[region]) {
+    if (assignment[neighbor] === color) return false;
+  }
+  return true;
+}
+
+function backtrack(regions, idx, assignment, adjacency, colors) {
+  if (idx === regions.length) return true;
+  const region = regions[idx];
+  for (const color of colors) {
+    if (isConsistent(region, color, assignment, adjacency)) {
+      assignment[region] = color;
+      logLines.push(`Assign <span>${region}</span> → ${color}`);
+      if (backtrack(regions, idx + 1, assignment, adjacency, colors)) return true;
+      delete assignment[region];
+      backtracks++;
+      logLines.push(`<span style="color:var(--red)">Backtrack</span> from ${region}`);
+    }
+  }
+  return false;
+}
+
+function solve() {
+  document.getElementById('errorMsg').textContent = '';
+  backtracks = 0;
+  logLines = [];
+  const { regions, adjacency, colors } = parseInput();
+  if (regions.length < 2) { document.getElementById('errorMsg').textContent = 'Enter at least 2 regions.'; return; }
+  if (colors.length < 2) { document.getElementById('errorMsg').textContent = 'Enter at least 2 colors.'; return; }
+  const assignment = {};
+  const success = backtrack(regions, 0, assignment, adjacency, colors);
+  renderResults(assignment, success, regions, adjacency, colors);
+  renderMap(regions, adjacency, assignment);
+  document.getElementById('statRegions').textContent = regions.length;
+  document.getElementById('statColors').textContent = new Set(Object.values(assignment)).size || 0;
+  document.getElementById('statSteps').textContent = backtracks;
+}
+
+function renderResults(assignment, success, regions, adjacency, colors) {
+  const box = document.getElementById('resultBox');
+  const logBox = document.getElementById('logBox');
+  if (!success) {
+    box.innerHTML = `<span class="badge badge-fail">❌ NO SOLUTION</span><p style="color:var(--muted);margin-top:8px;font-size:0.8rem">Try adding more colors.</p>`;
+    return;
+  }
+  let html = `<div style="margin-bottom:10px"><span class="badge badge-success">✓ SOLVED</span></div>`;
+  regions.forEach(r => {
+    const c = assignment[r];
+    const hexColor = COLORS_PALETTE[c] || '#888';
+    html += `<div class="result-row">
+      <span><span class="color-chip" style="background:${hexColor}"></span><b>${r}</b></span>
+      <span style="color:${hexColor};font-weight:700">${c}</span>
+    </div>`;
+  });
+  box.innerHTML = html;
+  let logHtml = '<div class="step-log">';
+  logLines.forEach((l, i) => {
+    logHtml += `<div class="log-line">${i + 1}. ${l}</div>`;
+  });
+  logHtml += '</div>';
+  logBox.innerHTML = logHtml;
+}
+
+function renderMap(regions, adjacency, assignment) {
+  const svg = document.getElementById('mapSvg');
+  svg.innerHTML = '';
+  const n = regions.length;
+  const cx = 200, cy = 150, rx = 130, ry = 110;
+  const positions = {};
+  regions.forEach((r, i) => {
+    const angle = (2 * Math.PI * i / n) - Math.PI / 2;
+    positions[r] = { x: cx + rx * Math.cos(angle), y: cy + ry * Math.sin(angle) };
+  });
+
+  // Draw edges
+  const drawn = new Set();
+  regions.forEach(r => {
+    (adjacency[r] || []).forEach(nb => {
+      const key = [r, nb].sort().join('-');
+      if (!drawn.has(key)) {
+        drawn.add(key);
+        const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+        line.setAttribute('x1', positions[r].x); line.setAttribute('y1', positions[r].y);
+        line.setAttribute('x2', positions[nb].x); line.setAttribute('y2', positions[nb].y);
+        line.setAttribute('stroke', '#333'); line.setAttribute('stroke-width', '2');
+        svg.appendChild(line);
+      }
+    });
+  });
+
+  // Draw nodes
+  regions.forEach(r => {
+    const color = assignment[r];
+    const hexColor = color ? (COLORS_PALETTE[color] || '#555') : '#333';
+    const { x, y } = positions[r];
+    const g = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+    g.setAttribute('class', 'region');
+    const circle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+    circle.setAttribute('cx', x); circle.setAttribute('cy', y);
+    circle.setAttribute('r', 28);
+    circle.setAttribute('fill', hexColor);
+    circle.setAttribute('stroke', '#fff'); circle.setAttribute('stroke-width', '2');
+    circle.setAttribute('fill-opacity', '0.85');
+    const text = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+    text.setAttribute('x', x); text.setAttribute('y', y + 1);
+    text.setAttribute('text-anchor', 'middle'); text.setAttribute('dominant-baseline', 'middle');
+    text.setAttribute('fill', '#000'); text.setAttribute('font-weight', 'bold');
+    text.setAttribute('font-size', '14'); text.setAttribute('font-family', 'Syne, sans-serif');
+    text.textContent = r;
+    g.appendChild(circle); g.appendChild(text);
+    svg.appendChild(g);
+    if (color) {
+      const lbl = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+      lbl.setAttribute('x', x); lbl.setAttribute('y', y + 44);
+      lbl.setAttribute('text-anchor', 'middle');
+      lbl.setAttribute('fill', hexColor); lbl.setAttribute('font-size', '9');
+      lbl.setAttribute('font-family', 'JetBrains Mono, monospace'); lbl.setAttribute('font-weight', '700');
+      lbl.textContent = color.toUpperCase();
+      svg.appendChild(lbl);
+    }
+  });
+}
+
+function loadPreset() {
+  document.getElementById('regions').value = 'MH,MP,GJ,RJ,UP,HR';
+  document.getElementById('adjacency').value = 'MH-MP\nMH-GJ\nMP-GJ\nMP-RJ\nMP-UP\nGJ-RJ\nRJ-UP\nRJ-HR\nUP-HR';
+  document.getElementById('colors').value = 'Red,Green,Blue,Yellow';
+}
+
+// Auto-run on load
+window.onload = () => solve();
+</script>
+</body>
+  </html>
